@@ -11,7 +11,6 @@ class OnlineGomoku {
         this.gameState = 'menu'; // menu, waiting, playing, finished
         this.board = [];
         this.boardSize = 15;
-        this.cellSize = 38;
         
         // 新增功能相关属性
         this.lastMove = null; // 记录最新落子位置 {row, col, player}
@@ -19,10 +18,27 @@ class OnlineGomoku {
         this.gameEndTime = null; // 游戏结束时间
         this.moveHistory = []; // 移动历史记录
         
+        this.initCanvasSize();
         this.initBoard();
         this.initEventListeners();
         this.drawBoard();
         this.updateUI();
+    }
+
+    initCanvasSize() {
+        // 获取棋盘容器的实际宽度，确保与上面的模块完全对齐
+        const boardContainer = this.canvas.parentElement;
+        const containerRect = boardContainer.getBoundingClientRect();
+        const boardWidth = containerRect.width;
+        
+        // 设置canvas尺寸为容器的实际宽度（正方形）
+        this.canvas.width = boardWidth;
+        this.canvas.height = boardWidth;
+        
+        // 计算格子大小，留出适当边距
+        const boardMargin = 30; // 棋盘内边距
+        const availableSpace = boardWidth - boardMargin * 2;
+        this.cellSize = availableSpace / (this.boardSize - 1);
     }
 
     initBoard() {
@@ -88,6 +104,13 @@ class OnlineGomoku {
 
         // 检查URL参数是否包含房间ID
         this.checkUrlParams();
+
+        // 窗口大小变化时重新调整棋盘尺寸
+        window.addEventListener('resize', () => {
+            this.initCanvasSize();
+            this.drawBoard();
+            this.redrawBoard();
+        });
     }
 
     checkUrlParams() {
@@ -1024,26 +1047,19 @@ class OnlineGomoku {
         this.ctx.fillStyle = bgGradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // 添加木纹纹理效果
-        this.ctx.globalAlpha = 0.08;
-        for (let i = 0; i < 15; i++) {
-            this.ctx.strokeStyle = i % 2 === 0 ? '#8b4513' : '#a0522d';
-            this.ctx.lineWidth = Math.random() * 1.5 + 0.3;
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, i * this.canvas.height / 15);
-            this.ctx.lineTo(this.canvas.width, i * this.canvas.height / 15 + Math.random() * 8 - 4);
-            this.ctx.stroke();
-        }
-        this.ctx.globalAlpha = 1;
+        // 添加逼真的木纹纹理效果
+        this.drawWoodTexture();
         
-        // 绘制网格线 - 更精细的样式
+        // 绘制网格线 - 确保所有线条都完整显示
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        
+        // 先绘制所有内部细线
+        this.ctx.lineWidth = 1.5;
+        this.ctx.strokeStyle = '#8b4513';
+        
         for (let i = 0; i < this.boardSize; i++) {
-            const pos = this.cellSize / 2 + i * this.cellSize;
-            
-            // 外围边框线更粗
-            const isEdge = (i === 0 || i === this.boardSize - 1);
-            this.ctx.lineWidth = isEdge ? 2.5 : 1.2;
-            this.ctx.strokeStyle = isEdge ? '#654321' : '#8b4513';
+            const pos = Math.round(this.cellSize / 2 + i * this.cellSize) + 0.5; // 添加0.5避免模糊
             
             // 垂直线
             this.ctx.beginPath();
@@ -1057,6 +1073,18 @@ class OnlineGomoku {
             this.ctx.lineTo(this.canvas.width - this.cellSize / 2, pos);
             this.ctx.stroke();
         }
+        
+        // 然后绘制外边框，确保清晰可见
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeStyle = '#654321';
+        
+        const borderOffset = this.cellSize / 2;
+        const boardWidth = this.canvas.width - this.cellSize;
+        const boardHeight = this.canvas.height - this.cellSize;
+        
+        this.ctx.beginPath();
+        this.ctx.rect(borderOffset, borderOffset, boardWidth, boardHeight);
+        this.ctx.stroke();
         
         // 绘制网格交叉点的小圆点（增强精致感）
         this.ctx.fillStyle = 'rgba(139, 69, 19, 0.3)';
@@ -1171,59 +1199,122 @@ class OnlineGomoku {
             this.ctx.stroke();
             
         } else {
-            // 白子 - 白灰渐变效果，增强立体感
-            const gradient = this.ctx.createRadialGradient(
-                x - radius * 0.3, y - radius * 0.3, 0,
-                x + radius * 0.2, y + radius * 0.2, radius * 1.2
-            );
-            gradient.addColorStop(0, '#ffffff');
-            gradient.addColorStop(0.3, '#f5f5f5');
-            gradient.addColorStop(0.7, '#e0e0e0');
-            gradient.addColorStop(0.9, '#d0d0d0');
-            gradient.addColorStop(1, '#b8b8b8');
+            // 白子 - 真实立体棋子效果，正确的光影关系
             
-            this.ctx.fillStyle = gradient;
+            // 假设光源从左上方45度角照射
+            const lightX = x - radius * 0.4;
+            const lightY = y - radius * 0.4;
+            
+            // 1. 棋盘上的投影（棋子底部阴影）
+            const dropShadow = this.ctx.createRadialGradient(
+                x + radius * 0.15, y + radius * 0.15, 0,
+                x + radius * 0.15, y + radius * 0.15, radius * 1.2
+            );
+            dropShadow.addColorStop(0, 'rgba(101, 67, 33, 0.3)');
+            dropShadow.addColorStop(0.7, 'rgba(101, 67, 33, 0.1)');
+            dropShadow.addColorStop(1, 'rgba(101, 67, 33, 0)');
+            
+            this.ctx.fillStyle = dropShadow;
+            this.ctx.beginPath();
+            this.ctx.arc(x + radius * 0.1, y + radius * 0.1, radius + 3, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // 2. 棋子底面（较暗的基础色）
+            const baseTone = this.ctx.createRadialGradient(
+                x, y, 0,
+                x, y, radius
+            );
+            baseTone.addColorStop(0, '#f8f8f8');
+            baseTone.addColorStop(0.6, '#e8e8e8');
+            baseTone.addColorStop(1, '#d0d0d0');
+            
+            this.ctx.fillStyle = baseTone;
             this.ctx.beginPath();
             this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
             this.ctx.fill();
             
-            // 强烈的高光效果
-            const highlight = this.ctx.createRadialGradient(
-                x - radius * 0.4, y - radius * 0.4, 0,
-                x - radius * 0.4, y - radius * 0.4, radius * 0.5
+            // 3. 立体感渐变（从光照面到阴影面）
+            const volumeGradient = this.ctx.createRadialGradient(
+                lightX, lightY, 0,
+                x + radius * 0.3, y + radius * 0.3, radius * 1.4
             );
-            highlight.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-            highlight.addColorStop(0.6, 'rgba(255, 255, 255, 0.3)');
-            highlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            volumeGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+            volumeGradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.4)');
+            volumeGradient.addColorStop(0.7, 'rgba(255, 255, 255, 0)');
+            volumeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.15)');
             
-            this.ctx.fillStyle = highlight;
+            this.ctx.fillStyle = volumeGradient;
             this.ctx.beginPath();
-            this.ctx.arc(x - radius * 0.25, y - radius * 0.25, radius * 0.45, 0, 2 * Math.PI);
+            this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
             this.ctx.fill();
             
-            // 增加阴影效果
-            const shadow = this.ctx.createRadialGradient(
-                x + radius * 0.3, y + radius * 0.3, 0,
-                x + radius * 0.3, y + radius * 0.3, radius * 0.6
+            // 4. 主高光（镜面反射）
+            const specularHighlight = this.ctx.createRadialGradient(
+                lightX, lightY, 0,
+                lightX, lightY, radius * 0.3
             );
-            shadow.addColorStop(0, 'rgba(0, 0, 0, 0.15)');
-            shadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            specularHighlight.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+            specularHighlight.addColorStop(0.3, 'rgba(255, 255, 255, 0.7)');
+            specularHighlight.addColorStop(0.8, 'rgba(255, 255, 255, 0.2)');
+            specularHighlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
             
-            this.ctx.fillStyle = shadow;
+            this.ctx.fillStyle = specularHighlight;
             this.ctx.beginPath();
-            this.ctx.arc(x + radius * 0.15, y + radius * 0.15, radius * 0.4, 0, 2 * Math.PI);
+            this.ctx.arc(lightX, lightY, radius * 0.25, 0, 2 * Math.PI);
             this.ctx.fill();
             
-            // 精细边框
-            this.ctx.strokeStyle = '#888';
-            this.ctx.lineWidth = 1.2;
+            // 5. 次级高光（环境光反射）
+            const ambientHighlight = this.ctx.createRadialGradient(
+                x - radius * 0.2, y - radius * 0.5, 0,
+                x - radius * 0.2, y - radius * 0.5, radius * 0.4
+            );
+            ambientHighlight.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+            ambientHighlight.addColorStop(0.5, 'rgba(255, 255, 255, 0.15)');
+            ambientHighlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            
+            this.ctx.fillStyle = ambientHighlight;
+            this.ctx.beginPath();
+            this.ctx.arc(x - radius * 0.15, y - radius * 0.4, radius * 0.3, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // 6. 接触阴影（棋子与棋盘接触处的阴影）
+            const contactShadow = this.ctx.createRadialGradient(
+                x, y, radius * 0.8,
+                x, y, radius
+            );
+            contactShadow.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            contactShadow.addColorStop(0.8, 'rgba(0, 0, 0, 0.1)');
+            contactShadow.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+            
+            this.ctx.fillStyle = contactShadow;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // 7. 边缘高光（菲涅尔效果）
+            const fresnelHighlight = this.ctx.createRadialGradient(
+                x, y, radius * 0.85,
+                x, y, radius
+            );
+            fresnelHighlight.addColorStop(0, 'rgba(255, 255, 255, 0)');
+            fresnelHighlight.addColorStop(0.8, 'rgba(255, 255, 255, 0.2)');
+            fresnelHighlight.addColorStop(1, 'rgba(255, 255, 255, 0.6)');
+            
+            this.ctx.fillStyle = fresnelHighlight;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // 8. 外轮廓
+            this.ctx.strokeStyle = '#aaa';
+            this.ctx.lineWidth = 1;
             this.ctx.beginPath();
             this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
             this.ctx.stroke();
             
-            // 内层细边框增强立体感
-            this.ctx.strokeStyle = '#ccc';
-            this.ctx.lineWidth = 0.8;
+            // 9. 内轮廓高光
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            this.ctx.lineWidth = 0.5;
             this.ctx.beginPath();
             this.ctx.arc(x, y, radius - 1, 0, 2 * Math.PI);
             this.ctx.stroke();
@@ -1242,6 +1333,137 @@ class OnlineGomoku {
             this.ctx.beginPath();
             this.ctx.arc(x, y, 3, 0, 2 * Math.PI);
             this.ctx.fill();
+        }
+        
+        // 恢复上下文
+        this.ctx.restore();
+    }
+
+    drawWoodTexture() {
+        // 保存当前上下文
+        this.ctx.save();
+        
+        // 创建多个年轮中心点（模拟树根横截面）
+        const ringCenters = [
+            { x: this.canvas.width * 0.3, y: this.canvas.height * 0.25 },
+            { x: this.canvas.width * 0.7, y: this.canvas.height * 0.4 },
+            { x: this.canvas.width * 0.45, y: this.canvas.height * 0.75 },
+            { x: this.canvas.width * 0.15, y: this.canvas.height * 0.8 },
+            { x: this.canvas.width * 0.85, y: this.canvas.height * 0.15 }
+        ];
+        
+        // 绘制年轮
+        ringCenters.forEach((center, centerIndex) => {
+            const maxRadius = Math.min(
+                Math.max(center.x, this.canvas.width - center.x),
+                Math.max(center.y, this.canvas.height - center.y)
+            ) + 50;
+            
+            // 每个中心绘制多个年轮圆
+            const ringCount = 8 + Math.floor(Math.random() * 6);
+            
+            for (let ring = 1; ring <= ringCount; ring++) {
+                const baseRadius = (ring / ringCount) * maxRadius;
+                const alpha = 0.08 - (ring / ringCount) * 0.04; // 外圈更淡
+                
+                this.ctx.globalAlpha = alpha;
+                this.ctx.strokeStyle = ring % 2 === 0 ? '#8b4513' : '#a0522d';
+                this.ctx.lineWidth = 0.8 + Math.random() * 0.6;
+                
+                this.ctx.beginPath();
+                
+                // 绘制不规则的年轮圆
+                const segments = 120;
+                for (let i = 0; i <= segments; i++) {
+                    const angle = (i / segments) * Math.PI * 2;
+                    
+                    // 添加随机变化让年轮更自然
+                    const radiusVariation = 1 + (Math.sin(angle * 6) * 0.15) + (Math.random() - 0.5) * 0.2;
+                    const actualRadius = baseRadius * radiusVariation;
+                    
+                    const x = center.x + Math.cos(angle) * actualRadius;
+                    const y = center.y + Math.sin(angle) * actualRadius;
+                    
+                    if (i === 0) {
+                        this.ctx.moveTo(x, y);
+                    } else {
+                        this.ctx.lineTo(x, y);
+                    }
+                }
+                
+                this.ctx.closePath();
+                this.ctx.stroke();
+            }
+        });
+        
+        // 添加径向木纹（从年轮中心向外的放射状纹理）
+        this.ctx.globalAlpha = 0.04;
+        ringCenters.forEach(center => {
+            const rayCount = 12 + Math.floor(Math.random() * 8);
+            
+            for (let ray = 0; ray < rayCount; ray++) {
+                const angle = (ray / rayCount) * Math.PI * 2 + Math.random() * 0.3;
+                const length = 80 + Math.random() * 120;
+                
+                this.ctx.strokeStyle = Math.random() > 0.5 ? '#654321' : '#8b4513';
+                this.ctx.lineWidth = 0.4 + Math.random() * 0.3;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(center.x, center.y);
+                
+                // 绘制略微弯曲的射线
+                const segments = 10;
+                for (let seg = 1; seg <= segments; seg++) {
+                    const progress = seg / segments;
+                    const currentLength = length * progress;
+                    
+                    // 添加轻微的弯曲
+                    const curve = Math.sin(progress * Math.PI * 2) * 8;
+                    const perpAngle = angle + Math.PI / 2;
+                    
+                    const x = center.x + Math.cos(angle) * currentLength + Math.cos(perpAngle) * curve;
+                    const y = center.y + Math.sin(angle) * currentLength + Math.sin(perpAngle) * curve;
+                    
+                    this.ctx.lineTo(x, y);
+                }
+                
+                this.ctx.stroke();
+            }
+        });
+        
+        // 添加一些木材裂纹和细节
+        this.ctx.globalAlpha = 0.06;
+        const crackCount = 6 + Math.floor(Math.random() * 4);
+        
+        for (let crack = 0; crack < crackCount; crack++) {
+            const startX = Math.random() * this.canvas.width;
+            const startY = Math.random() * this.canvas.height;
+            const length = 30 + Math.random() * 100;
+            const angle = Math.random() * Math.PI * 2;
+            
+            this.ctx.strokeStyle = '#654321';
+            this.ctx.lineWidth = 0.5 + Math.random() * 0.4;
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(startX, startY);
+            
+            // 绘制分叉的裂纹
+            const segments = 8;
+            let currentX = startX;
+            let currentY = startY;
+            
+            for (let seg = 1; seg <= segments; seg++) {
+                const progress = seg / segments;
+                const segmentLength = (length / segments) * (1 + Math.random() * 0.3);
+                const angleVariation = (Math.random() - 0.5) * 0.4;
+                
+                currentX += Math.cos(angle + angleVariation) * segmentLength;
+                currentY += Math.sin(angle + angleVariation) * segmentLength;
+                
+                this.ctx.lineTo(currentX, currentY);
+            }
+            
+            this.ctx.stroke();
         }
         
         // 恢复上下文
