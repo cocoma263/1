@@ -11,6 +11,30 @@ const wss = new WebSocket.Server({ server });
 // 静态文件服务
 app.use(express.static(path.join(__dirname)));
 
+// 健康检查端点
+app.get('/health', (req, res) => {
+    const roomDetails = Array.from(rooms.entries()).map(([id, room]) => ({
+        id,
+        players: room.players.length,
+        gameState: room.gameState,
+        playerNames: room.players.map(p => p.name)
+    }));
+    
+    res.json({ 
+        status: 'ok', 
+        timestamp: new Date().toISOString(),
+        rooms: rooms.size,
+        connections: wss.clients.size,
+        roomDetails: roomDetails,
+        allRoomIds: Array.from(rooms.keys())
+    });
+});
+
+// 根路径
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // 游戏房间管理
 const rooms = new Map();
 const players = new Map();
@@ -28,6 +52,7 @@ class GameRoom {
 
     addPlayer(playerId, playerName, ws) {
         if (this.players.length >= 2) {
+            console.log('房间已满，无法添加玩家');
             return false;
         }
         
@@ -40,10 +65,26 @@ class GameRoom {
         };
         
         this.players.push(player);
+        console.log(`玩家 ${playerName} 加入房间 ${this.id}，当前玩家数: ${this.players.length}`);
+        
+        // 通知所有玩家有新玩家加入
+        this.broadcast({
+            type: 'player_joined',
+            playersCount: this.players.length,
+            players: this.players.map(p => ({
+                id: p.id,
+                name: p.name,
+                playerNumber: p.playerNumber
+            }))
+        });
         
         if (this.players.length === 2) {
+            console.log(`房间 ${this.id} 玩家已满，开始游戏`);
             this.gameState = 'playing';
-            this.notifyGameStart();
+            // 稍微延迟一下确保所有玩家都收到了加入通知
+            setTimeout(() => {
+                this.notifyGameStart();
+            }, 500);
         }
         
         return true;
@@ -169,7 +210,9 @@ class GameRoom {
     }
 
     notifyGameStart() {
-        this.broadcast({
+        console.log(`通知游戏开始，房间 ${this.id}，玩家数: ${this.players.length}`);
+        
+        const gameStartMessage = {
             type: 'game_start',
             players: this.players.map(p => ({
                 id: p.id,
@@ -177,7 +220,10 @@ class GameRoom {
                 playerNumber: p.playerNumber
             })),
             currentPlayer: this.currentPlayer
-        });
+        };
+        
+        console.log('发送游戏开始消息:', gameStartMessage);
+        this.broadcast(gameStartMessage);
     }
 
     broadcast(message) {
@@ -202,25 +248,41 @@ class GameRoom {
 }
 
 // WebSocket连接处理
-wss.on('connection', (ws) => {
-    console.log('新的WebSocket连接');
+wss.on('connection', (ws, req) => {
+    console.log('新的WebSocket连接，来源:', req.socket.remoteAddress);
+    
+    // 发送连接确认
+    ws.send(JSON.stringify({
+        type: 'connection_established',
+        message: '连接成功'
+    }));
 
     ws.on('message', (message) => {
         try {
             const data = JSON.parse(message);
+            console.log('收到消息:', data.type);
             handleMessage(ws, data);
         } catch (error) {
             console.error('消息解析错误:', error);
+            ws.send(JSON.stringify({
+                type: 'error',
+                message: '消息格式错误'
+            }));
         }
     });
 
-    ws.on('close', () => {
+    ws.on('close', (code, reason) => {
+        console.log('WebSocket连接关闭，代码:', code, '原因:', reason.toString());
         // 处理断开连接
         const playerId = players.get(ws);
         if (playerId) {
             handlePlayerDisconnect(playerId);
             players.delete(ws);
         }
+    });
+    
+    ws.on('error', (error) => {
+        console.error('WebSocket错误:', error);
     });
 });
 
@@ -244,38 +306,69 @@ function handleMessage(ws, data) {
 }
 
 function handleCreateRoom(ws, data) {
-    const roomId = uuidv4().substring(0, 8);
+    const roomId = uuidv4().substring(0, 8).toUpperCase();
     const playerId = uuidv4();
     const playerName = data.playerName || '玩家1';
     
+    console.log(`=== 创建房间 ===`);
+    console.log(`房间ID: ${roomId}`);
+    console.log(`玩家ID: ${playerId}`);
+    console.log(`玩家昵称: ${playerName}`);
+    
     const room = new GameRoom(roomId);
     rooms.set(roomId, room);
+    console.log(`房间已添加到Map，当前房间总数: ${rooms.size}`);
+    console.log(`当前所有房间ID:`, Array.from(rooms.keys()));
     
     room.addPlayer(playerId, playerName, ws);
     players.set(ws, playerId);
     
-    ws.send(JSON.stringify({
+    const response = {
         type: 'room_created',
         roomId: roomId,
         playerId: playerId,
         playerNumber: 1,
         gameState: 'waiting'
-    }));
+    };
+    
+    console.log(`发送房间创建响应:`, response);
+    ws.send(JSON.stringify(response));
 }
 
 function handleJoinRoom(ws, data) {
     const { roomId, playerName } = data;
+    
+    console.log(`=== 加入房间请求 ===`);
+    console.log(`请求加入房间ID: ${roomId}`);
+    console.log(`玩家昵称: ${playerName}`);
+    console.log(`当前房间总数: ${rooms.size}`);
+    console.log(`当前所有房间ID:`, Array.from(rooms.keys()));
+    
     const room = rooms.get(roomId);
+    console.log(`查找房间结果:`, room ? '找到房间' : '房间不存在');
     
     if (!room) {
+        console.log(`❌ 房间 ${roomId} 不存在`);
+        console.log(`可用房间列表:`, Array.from(rooms.keys()));
+        console.log(`rooms.size: ${rooms.size}`);
+        console.log(`尝试精确匹配:`, rooms.has(roomId));
+        
+        const availableRooms = Array.from(rooms.keys());
+        const errorMessage = availableRooms.length > 0 
+            ? `房间 ${roomId} 不存在。当前可用房间: ${availableRooms.join(', ')}`
+            : `房间 ${roomId} 不存在。当前没有活跃房间，请先创建房间。`;
+            
         ws.send(JSON.stringify({
             type: 'error',
-            message: '房间不存在'
+            message: errorMessage
         }));
         return;
     }
     
+    console.log(`房间 ${roomId} 当前玩家数: ${room.players.length}`);
+    
     if (room.players.length >= 2) {
+        console.log(`❌ 房间 ${roomId} 已满`);
         ws.send(JSON.stringify({
             type: 'error',
             message: '房间已满'
@@ -284,19 +377,24 @@ function handleJoinRoom(ws, data) {
     }
     
     const playerId = uuidv4();
+    console.log(`尝试添加玩家到房间，玩家ID: ${playerId}`);
     const success = room.addPlayer(playerId, playerName || '玩家2', ws);
     
     if (success) {
         players.set(ws, playerId);
         
-        ws.send(JSON.stringify({
+        const response = {
             type: 'room_joined',
             roomId: roomId,
             playerId: playerId,
             playerNumber: room.players.length,
             gameState: room.gameState
-        }));
+        };
+        
+        console.log(`✅ 玩家成功加入房间，发送响应:`, response);
+        ws.send(JSON.stringify(response));
     } else {
+        console.log(`❌ 添加玩家到房间失败`);
         ws.send(JSON.stringify({
             type: 'error',
             message: '加入房间失败'
@@ -361,9 +459,34 @@ setInterval(() => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
 
+console.log('=== 服务器启动信息 ===');
+console.log('Node版本:', process.version);
+console.log('环境:', process.env.NODE_ENV);
+console.log('端口:', PORT);
+console.log('主机:', HOST);
+console.log('当前目录:', __dirname);
+
 server.listen(PORT, HOST, () => {
-    console.log(`服务器运行在 ${HOST}:${PORT}`);
-    if (process.env.NODE_ENV !== 'production') {
+    console.log(`✅ 服务器成功启动在 ${HOST}:${PORT}`);
+    if (process.env.NODE_ENV === 'production') {
+        console.log(`生产环境访问地址: https://your-domain.com`);
+    } else {
         console.log(`本地访问: http://localhost:${PORT}`);
     }
+    console.log('WebSocket服务器已启动');
+});
+
+server.on('error', (error) => {
+    console.error('❌ 服务器启动失败:', error);
+    process.exit(1);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('❌ 未捕获的异常:', error);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ 未处理的Promise拒绝:', reason);
+    process.exit(1);
 });
