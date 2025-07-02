@@ -120,16 +120,39 @@ class OnlineGomoku {
             return;
         }
 
-        this.connectWebSocket();
-        this.updateConnectionStatus('connecting', '连接服务器...');
-        
-        // WebSocket连接成功后会发送创建房间请求
-        this.pendingAction = { type: 'create', playerName };
+        console.log(`=== 客户端创建房间 ===`);
+        console.log(`玩家昵称: ${playerName}`);
+        console.log(`WebSocket状态: ${this.ws ? this.ws.readyState : 'null'}`);
+
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            // 如果WebSocket已经连接，直接发送请求
+            console.log('WebSocket已连接，直接创建房间');
+            const message = {
+                type: 'create_room',
+                playerName: playerName
+            };
+            console.log('发送创建房间消息:', message);
+            this.ws.send(JSON.stringify(message));
+        } else {
+            // 否则先连接WebSocket
+            console.log('WebSocket未连接，正在连接...');
+            this.connectWebSocket();
+            this.updateConnectionStatus('connecting', '连接服务器...');
+            
+            // WebSocket连接成功后会发送创建房间请求
+            this.pendingAction = { type: 'create', playerName };
+            console.log('设置等待操作:', this.pendingAction);
+        }
     }
 
     joinRoom() {
         const playerName = document.getElementById('player-name').value.trim();
         const roomId = document.getElementById('room-id-input').value.trim().toUpperCase();
+        
+        console.log(`=== 客户端加入房间 ===`);
+        console.log(`玩家昵称: ${playerName}`);
+        console.log(`房间ID: ${roomId}`);
+        console.log(`WebSocket状态: ${this.ws ? this.ws.readyState : 'null'}`);
         
         if (!playerName) {
             alert('请输入你的昵称');
@@ -141,11 +164,26 @@ class OnlineGomoku {
             return;
         }
 
-        this.connectWebSocket();
-        this.updateConnectionStatus('connecting', '连接服务器...');
-        
-        // WebSocket连接成功后会发送加入房间请求
-        this.pendingAction = { type: 'join', playerName, roomId };
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            // 如果WebSocket已经连接，直接发送请求
+            console.log('WebSocket已连接，直接加入房间');
+            const message = {
+                type: 'join_room',
+                roomId: roomId,
+                playerName: playerName
+            };
+            console.log('发送加入房间消息:', message);
+            this.ws.send(JSON.stringify(message));
+        } else {
+            // 否则先连接WebSocket
+            console.log('WebSocket未连接，正在连接...');
+            this.connectWebSocket();
+            this.updateConnectionStatus('connecting', '连接服务器...');
+            
+            // WebSocket连接成功后会发送加入房间请求
+            this.pendingAction = { type: 'join', playerName, roomId };
+            console.log('设置等待操作:', this.pendingAction);
+        }
     }
 
     connectWebSocket() {
@@ -157,7 +195,10 @@ class OnlineGomoku {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
         
-        console.log('连接WebSocket:', wsUrl);
+        console.log('尝试连接WebSocket:', wsUrl);
+        console.log('当前协议:', window.location.protocol);
+        console.log('当前主机:', window.location.host);
+        
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
@@ -166,29 +207,44 @@ class OnlineGomoku {
             
             // 执行等待的操作
             if (this.pendingAction) {
-                if (this.pendingAction.type === 'create') {
-                    this.ws.send(JSON.stringify({
-                        type: 'create_room',
-                        playerName: this.pendingAction.playerName
-                    }));
-                } else if (this.pendingAction.type === 'join') {
-                    this.ws.send(JSON.stringify({
-                        type: 'join_room',
-                        roomId: this.pendingAction.roomId,
-                        playerName: this.pendingAction.playerName
-                    }));
-                }
-                this.pendingAction = null;
+                console.log('执行等待的操作:', this.pendingAction);
+                setTimeout(() => {
+                    if (this.pendingAction.type === 'create') {
+                        console.log('发送创建房间请求');
+                        this.ws.send(JSON.stringify({
+                            type: 'create_room',
+                            playerName: this.pendingAction.playerName
+                        }));
+                    } else if (this.pendingAction.type === 'join') {
+                        console.log('发送加入房间请求');
+                        this.ws.send(JSON.stringify({
+                            type: 'join_room',
+                            roomId: this.pendingAction.roomId,
+                            playerName: this.pendingAction.playerName
+                        }));
+                    }
+                    this.pendingAction = null;
+                }, 100); // 稍等片刻确保连接稳定
             }
         };
 
         this.ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            this.handleWebSocketMessage(data);
+            try {
+                console.log('收到WebSocket消息:', event.data);
+                const data = JSON.parse(event.data);
+                console.log('解析后的数据:', data);
+                
+                // 使用setTimeout避免阻塞UI
+                setTimeout(() => {
+                    this.handleWebSocketMessage(data);
+                }, 0);
+            } catch (error) {
+                console.error('消息解析失败:', error, '原始数据:', event.data);
+            }
         };
 
-        this.ws.onclose = () => {
-            console.log('WebSocket连接已关闭');
+        this.ws.onclose = (event) => {
+            console.log('WebSocket连接已关闭，代码:', event.code, '原因:', event.reason);
             this.updateConnectionStatus('disconnected', '连接已断开');
             
             // 尝试重连
@@ -202,17 +258,26 @@ class OnlineGomoku {
 
         this.ws.onerror = (error) => {
             console.error('WebSocket错误:', error);
-            this.updateConnectionStatus('disconnected', '连接失败');
+            console.error('WebSocket状态:', this.ws.readyState);
+            this.updateConnectionStatus('disconnected', 'WebSocket连接失败');
         };
     }
 
     handleWebSocketMessage(data) {
+        console.log('收到服务器消息:', data.type, data);
+        
         switch (data.type) {
+            case 'connection_established':
+                console.log('WebSocket连接确认:', data.message);
+                break;
             case 'room_created':
                 this.handleRoomCreated(data);
                 break;
             case 'room_joined':
                 this.handleRoomJoined(data);
+                break;
+            case 'player_joined':
+                this.handlePlayerJoined(data);
                 break;
             case 'game_start':
                 this.handleGameStart(data);
@@ -230,18 +295,26 @@ class OnlineGomoku {
                 this.handlePlayerLeft(data);
                 break;
             case 'error':
+                console.error('服务器错误:', data.message);
                 alert(data.message);
                 break;
             default:
-                console.log('未知消息:', data);
+                console.log('未知消息类型:', data);
         }
     }
 
     handleRoomCreated(data) {
+        console.log('=== 房间创建成功 ===');
+        console.log('房间数据:', data);
+        
         this.playerId = data.playerId;
         this.playerNumber = data.playerNumber;
         this.roomId = data.roomId;
         this.gameState = 'waiting';
+        
+        console.log(`房间ID: ${this.roomId}`);
+        console.log(`玩家ID: ${this.playerId}`);
+        console.log(`玩家编号: ${this.playerNumber}`);
         
         this.showRoomStatus();
         this.updatePlayerInfo();
@@ -265,6 +338,27 @@ class OnlineGomoku {
         }
         
         this.updateUI();
+    }
+
+    handlePlayerJoined(data) {
+        console.log('玩家加入通知:', data);
+        
+        // 更新玩家信息显示
+        if (data.players && data.players.length > 0) {
+            data.players.forEach((player, index) => {
+                const playerInfo = document.getElementById(`player${index + 1}-info`);
+                if (playerInfo) {
+                    const nameSpan = playerInfo.querySelector('.player-name');
+                    nameSpan.textContent = player.name;
+                }
+            });
+        }
+        
+        if (data.playersCount === 2) {
+            this.updateConnectionStatus('waiting', '玩家已满，即将开始游戏...');
+        } else {
+            this.updateConnectionStatus('waiting', `等待玩家... (${data.playersCount}/2)`);
+        }
     }
 
     handleGameStart(data) {
