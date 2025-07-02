@@ -68,6 +68,11 @@ class OnlineGomoku {
             this.handleCanvasClick(e);
         });
 
+        // 退出房间
+        document.getElementById('exit-room-btn').addEventListener('click', () => {
+            this.exitRoom();
+        });
+
         // 回车键快捷操作
         document.getElementById('player-name').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -259,6 +264,13 @@ class OnlineGomoku {
 
         this.ws.onclose = (event) => {
             console.log('WebSocket连接已关闭，代码:', event.code, '原因:', event.reason);
+            
+            // 如果是手动断开连接，不需要重连
+            if (event.code === 1000 || this.gameState === 'menu') {
+                this.updateConnectionStatus('disconnected', '已断开连接');
+                return;
+            }
+            
             this.updateConnectionStatus('disconnected', '连接已断开');
             
             // 尝试重连
@@ -489,6 +501,65 @@ class OnlineGomoku {
     showRoomStatus() {
         document.getElementById('room-status').style.display = 'block';
         document.getElementById('room-id-display').textContent = `房间ID: ${this.roomId}`;
+        
+        // 隐藏房间控制面板
+        const roomControls = document.querySelector('.room-controls');
+        roomControls.style.display = 'none';
+    }
+
+    hideRoomStatus() {
+        document.getElementById('room-status').style.display = 'none';
+        
+        // 显示房间控制面板
+        const roomControls = document.querySelector('.room-controls');
+        roomControls.style.display = 'flex';
+    }
+
+    exitRoom() {
+        // 断开WebSocket连接
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
+        
+        // 重置游戏状态
+        this.gameState = 'menu';
+        this.playerId = null;
+        this.playerNumber = null;
+        this.roomId = null;
+        this.currentPlayer = 1;
+        this.lastMove = null;
+        this.gameStartTime = null;
+        this.gameEndTime = null;
+        this.moveHistory = [];
+        
+        // 重置棋盘
+        this.initBoard();
+        this.drawBoard();
+        
+        // 隐藏房间状态，显示控制面板
+        this.hideRoomStatus();
+        
+        // 清空输入框
+        document.getElementById('player-name').value = '';
+        document.getElementById('room-id-input').value = '';
+        
+        // 重置UI
+        this.updateConnectionStatus('disconnected', '已断开连接');
+        this.updateUI();
+        
+        // 清除计时器
+        const timerElement = document.getElementById('game-timer');
+        if (timerElement) {
+            timerElement.remove();
+        }
+        
+        // 清除获胜显示
+        const winnerDisplay = document.getElementById('winner-display');
+        winnerDisplay.classList.remove('show');
+        winnerDisplay.textContent = '';
+        
+        this.showToast('已退出房间', 2000);
     }
 
     updatePlayerInfo() {
@@ -941,27 +1012,82 @@ class OnlineGomoku {
     }
 
     drawBoard() {
-        this.ctx.fillStyle = '#deb887';
+        // 绘制棋盘背景 - 木纹渐变效果
+        const bgGradient = this.ctx.createRadialGradient(
+            this.canvas.width / 2, this.canvas.height / 2, 0,
+            this.canvas.width / 2, this.canvas.height / 2, this.canvas.width / 2
+        );
+        bgGradient.addColorStop(0, '#f4e4bc');
+        bgGradient.addColorStop(0.5, '#deb887');
+        bgGradient.addColorStop(1, '#d2a679');
+        
+        this.ctx.fillStyle = bgGradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        this.ctx.strokeStyle = '#8b4513';
-        this.ctx.lineWidth = 1;
+        // 添加木纹纹理效果
+        this.ctx.globalAlpha = 0.08;
+        for (let i = 0; i < 15; i++) {
+            this.ctx.strokeStyle = i % 2 === 0 ? '#8b4513' : '#a0522d';
+            this.ctx.lineWidth = Math.random() * 1.5 + 0.3;
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, i * this.canvas.height / 15);
+            this.ctx.lineTo(this.canvas.width, i * this.canvas.height / 15 + Math.random() * 8 - 4);
+            this.ctx.stroke();
+        }
+        this.ctx.globalAlpha = 1;
         
+        // 绘制网格线 - 更精细的样式
         for (let i = 0; i < this.boardSize; i++) {
             const pos = this.cellSize / 2 + i * this.cellSize;
             
+            // 外围边框线更粗
+            const isEdge = (i === 0 || i === this.boardSize - 1);
+            this.ctx.lineWidth = isEdge ? 2.5 : 1.2;
+            this.ctx.strokeStyle = isEdge ? '#654321' : '#8b4513';
+            
+            // 垂直线
             this.ctx.beginPath();
             this.ctx.moveTo(pos, this.cellSize / 2);
             this.ctx.lineTo(pos, this.canvas.height - this.cellSize / 2);
             this.ctx.stroke();
             
+            // 水平线
             this.ctx.beginPath();
             this.ctx.moveTo(this.cellSize / 2, pos);
             this.ctx.lineTo(this.canvas.width - this.cellSize / 2, pos);
             this.ctx.stroke();
         }
         
+        // 绘制网格交叉点的小圆点（增强精致感）
+        this.ctx.fillStyle = 'rgba(139, 69, 19, 0.3)';
+        for (let i = 0; i < this.boardSize; i++) {
+            for (let j = 0; j < this.boardSize; j++) {
+                const x = this.cellSize / 2 + j * this.cellSize;
+                const y = this.cellSize / 2 + i * this.cellSize;
+                
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 0.8, 0, 2 * Math.PI);
+                this.ctx.fill();
+            }
+        }
+        
+        // 绘制天元和星位
         this.drawStarPoints();
+        
+        // 添加棋盘边框阴影
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+        this.ctx.shadowBlur = 6;
+        this.ctx.shadowOffsetX = 2;
+        this.ctx.shadowOffsetY = 2;
+        this.ctx.strokeStyle = '#654321';
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeRect(1.5, 1.5, this.canvas.width - 3, this.canvas.height - 3);
+        
+        // 重置阴影
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
+        this.ctx.shadowOffsetX = 0;
+        this.ctx.shadowOffsetY = 0;
     }
 
     drawStarPoints() {
@@ -969,13 +1095,34 @@ class OnlineGomoku {
             [3, 3], [3, 11], [7, 7], [11, 3], [11, 11]
         ];
         
-        this.ctx.fillStyle = '#8b4513';
         points.forEach(([row, col]) => {
             const x = this.cellSize / 2 + col * this.cellSize;
             const y = this.cellSize / 2 + row * this.cellSize;
+            const radius = row === 7 && col === 7 ? 5 : 4; // 天元稍大
             
+            // 星位外圈 - 深色
+            this.ctx.fillStyle = '#654321';
             this.ctx.beginPath();
-            this.ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            this.ctx.arc(x, y, radius + 0.5, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // 星位内圈 - 浅色
+            this.ctx.fillStyle = '#8b4513';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // 星位高光
+            const gradient = this.ctx.createRadialGradient(
+                x - radius * 0.3, y - radius * 0.3, 0,
+                x, y, radius
+            );
+            gradient.addColorStop(0, 'rgba(160, 82, 45, 0.8)');
+            gradient.addColorStop(1, 'rgba(160, 82, 45, 0)');
+            
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
             this.ctx.fill();
         });
     }
@@ -1024,38 +1171,61 @@ class OnlineGomoku {
             this.ctx.stroke();
             
         } else {
-            // 白子 - 渐变效果
+            // 白子 - 白灰渐变效果，增强立体感
             const gradient = this.ctx.createRadialGradient(
                 x - radius * 0.3, y - radius * 0.3, 0,
-                x, y, radius
+                x + radius * 0.2, y + radius * 0.2, radius * 1.2
             );
-            gradient.addColorStop(0, '#fff');
-            gradient.addColorStop(0.7, '#f8f8f8');
-            gradient.addColorStop(1, '#e8e8e8');
+            gradient.addColorStop(0, '#ffffff');
+            gradient.addColorStop(0.3, '#f5f5f5');
+            gradient.addColorStop(0.7, '#e0e0e0');
+            gradient.addColorStop(0.9, '#d0d0d0');
+            gradient.addColorStop(1, '#b8b8b8');
             
             this.ctx.fillStyle = gradient;
             this.ctx.beginPath();
             this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
             this.ctx.fill();
             
-            // 高光效果
+            // 强烈的高光效果
             const highlight = this.ctx.createRadialGradient(
                 x - radius * 0.4, y - radius * 0.4, 0,
-                x - radius * 0.4, y - radius * 0.4, radius * 0.4
+                x - radius * 0.4, y - radius * 0.4, radius * 0.5
             );
-            highlight.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+            highlight.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+            highlight.addColorStop(0.6, 'rgba(255, 255, 255, 0.3)');
             highlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
             
             this.ctx.fillStyle = highlight;
             this.ctx.beginPath();
-            this.ctx.arc(x - radius * 0.2, y - radius * 0.2, radius * 0.4, 0, 2 * Math.PI);
+            this.ctx.arc(x - radius * 0.25, y - radius * 0.25, radius * 0.45, 0, 2 * Math.PI);
             this.ctx.fill();
             
-            // 边框
-            this.ctx.strokeStyle = '#999';
-            this.ctx.lineWidth = 1.5;
+            // 增加阴影效果
+            const shadow = this.ctx.createRadialGradient(
+                x + radius * 0.3, y + radius * 0.3, 0,
+                x + radius * 0.3, y + radius * 0.3, radius * 0.6
+            );
+            shadow.addColorStop(0, 'rgba(0, 0, 0, 0.15)');
+            shadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            this.ctx.fillStyle = shadow;
+            this.ctx.beginPath();
+            this.ctx.arc(x + radius * 0.15, y + radius * 0.15, radius * 0.4, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // 精细边框
+            this.ctx.strokeStyle = '#888';
+            this.ctx.lineWidth = 1.2;
             this.ctx.beginPath();
             this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            this.ctx.stroke();
+            
+            // 内层细边框增强立体感
+            this.ctx.strokeStyle = '#ccc';
+            this.ctx.lineWidth = 0.8;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius - 1, 0, 2 * Math.PI);
             this.ctx.stroke();
         }
         

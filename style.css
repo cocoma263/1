@@ -150,8 +150,16 @@ h1 {
     gap: 15px;
 }
 
-.player-input input {
-    width: 100%;
+.create-room-row,
+.join-room-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.create-room-row input,
+.join-room-row input {
+    flex: 1;
     padding: 12px 16px;
     border: 2px solid #dee2e6;
     border-radius: 25px;
@@ -160,32 +168,13 @@ h1 {
     background: white;
 }
 
-.player-input input:focus {
+.create-room-row input:focus,
+.join-room-row input:focus {
     outline: none;
     border-color: #667eea;
 }
 
-.room-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    align-items: center;
-}
-
-.join-room-section {
-    display: flex;
-    gap: 10px;
-    width: 100%;
-    max-width: 400px;
-}
-
-.join-room-section input {
-    flex: 1;
-    padding: 10px 16px;
-    border: 2px solid #dee2e6;
-    border-radius: 20px;
-    font-size: 14px;
-    text-align: center;
+.join-room-row input {
     text-transform: uppercase;
 }
 
@@ -231,19 +220,37 @@ h1 {
     border: 2px solid #dee2e6;
 }
 
-.copy-btn {
+.room-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.copy-btn,
+.exit-btn {
     padding: 6px 12px;
-    background: #17a2b8;
     color: white;
     border: none;
     border-radius: 15px;
     cursor: pointer;
     font-size: 12px;
     transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.copy-btn {
+    background: #17a2b8;
 }
 
 .copy-btn:hover {
     background: #138496;
+}
+
+.exit-btn {
+    background: #dc3545;
+}
+
+.exit-btn:hover {
+    background: #c82333;
 }
 
 .players-info {
@@ -456,13 +463,28 @@ h1 {
         margin-top: 10px;
     }
     
-    .room-actions {
+    .create-room-row,
+    .join-room-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .create-room-row input,
+    .join-room-row input {
+        width: 100%;
+    }
+    
+    .room-buttons {
+        flex-direction: column;
+        gap: 5px;
         align-items: stretch;
     }
     
-    .join-room-section {
-        flex-direction: column;
-        max-width: none;
+    .copy-btn,
+    .exit-btn {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 11px;
     }
     
     .players-info {
