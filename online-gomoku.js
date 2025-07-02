@@ -121,10 +121,37 @@ class OnlineGomoku {
         }
     }
 
-    setGameMode(mode) {
+    async setGameMode(mode) {
+        // 只有当前棋局真正开始了（playing状态）才需要确认离开
+        if (this.gameState === 'playing' && this.gameMode !== mode) {
+            const currentModeName = this.gameMode === 'pvp' ? '在线对战' : '人机对战';
+            const targetModeName = mode === 'pvp' ? '在线对战' : '人机对战';
+            
+            const confirmed = await this.showCustomConfirm(
+                '切换游戏模式',
+                `您正在进行${currentModeName}，确定要离开本局游戏切换到${targetModeName}模式吗？`
+            );
+            
+            if (!confirmed) {
+                // 用户选择不离开，恢复之前的按钮状态
+                document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(this.gameMode + '-mode').classList.add('active');
+                return;
+            }
+        }
+
+        // 如果从在线对战模式切换到其他模式，需要断开WebSocket连接
+        if (this.gameMode === 'pvp' && mode !== 'pvp' && this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
+
         this.gameMode = mode;
         document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
         document.getElementById(mode + '-mode').classList.add('active');
+
+        // 清理游戏状态
+        this.cleanupGameState();
 
         if (mode === 'pvp') {
             document.getElementById('online-controls').classList.remove('hidden');
@@ -136,6 +163,33 @@ class OnlineGomoku {
         }
 
         this.updateUI();
+    }
+
+    cleanupGameState() {
+        // 清除计时器
+        const timerElement = document.getElementById('game-timer');
+        if (timerElement) {
+            timerElement.remove();
+        }
+
+        // 清空棋盘
+        this.initBoard();
+        this.drawBoard();
+
+        // 重置游戏状态
+        this.currentPlayer = 1;
+        this.lastMove = null;
+        this.gameStartTime = null;
+        this.gameEndTime = null;
+        this.moveHistory = [];
+
+        // 清除获胜显示
+        const winnerDisplay = document.getElementById('winner-display');
+        winnerDisplay.classList.remove('show');
+        winnerDisplay.textContent = '';
+
+        // 隐藏重置按钮
+        document.getElementById('reset-btn').style.display = 'none';
     }
 
     startAIGame() {
@@ -1009,12 +1063,14 @@ class OnlineGomoku {
         const resetBtn = document.getElementById('reset-btn');
         
         if (this.gameState === 'menu') {
-            statusElement.textContent = '选择游戏模式';
+            statusElement.style.display = 'none'; // 隐藏空的状态显示区域
             resetBtn.style.display = 'none';
         } else if (this.gameState === 'waiting') {
+            statusElement.style.display = 'block'; // 确保显示状态区域
             statusElement.textContent = '等待对手...';
             resetBtn.style.display = 'none';
         } else if (this.gameState === 'playing') {
+            statusElement.style.display = 'block'; // 确保显示状态区域
             if (this.gameMode === 'pvp') {
                 if (this.currentPlayer === this.playerNumber) {
                     statusElement.textContent = '你的回合';
@@ -1026,9 +1082,11 @@ class OnlineGomoku {
             }
             resetBtn.style.display = this.gameMode === 'pve' ? 'inline-block' : 'none';
         } else if (this.gameState === 'finished') {
+            statusElement.style.display = 'block'; // 确保显示状态区域
             statusElement.textContent = '游戏结束';
             resetBtn.style.display = 'inline-block';
         } else if (this.gameState === 'pve') {
+            statusElement.style.display = 'block'; // 确保显示状态区域
             statusElement.textContent = '人机对战模式';
             resetBtn.style.display = 'none';
         }
@@ -1468,6 +1526,77 @@ class OnlineGomoku {
         
         // 恢复上下文
         this.ctx.restore();
+    }
+
+    // 自定义确认弹窗
+    showCustomConfirm(title, message) {
+        return new Promise((resolve) => {
+            // 创建弹窗元素
+            const modal = document.createElement('div');
+            modal.className = 'custom-confirm-modal';
+            modal.innerHTML = `
+                <div class="custom-confirm-content">
+                    <div class="custom-confirm-title">${title}</div>
+                    <div class="custom-confirm-message">${message}</div>
+                    <div class="custom-confirm-buttons">
+                        <button class="custom-confirm-btn cancel">取消</button>
+                        <button class="custom-confirm-btn confirm">确认</button>
+                    </div>
+                </div>
+            `;
+
+            // 添加到页面
+            document.body.appendChild(modal);
+
+            // 获取按钮
+            const confirmBtn = modal.querySelector('.confirm');
+            const cancelBtn = modal.querySelector('.cancel');
+
+            // 显示弹窗
+            setTimeout(() => modal.classList.add('show'), 100);
+
+            // 处理确认按钮
+            confirmBtn.addEventListener('click', () => {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.remove();
+                    resolve(true);
+                }, 300);
+            });
+
+            // 处理取消按钮
+            cancelBtn.addEventListener('click', () => {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.remove();
+                    resolve(false);
+                }, 300);
+            });
+
+            // 点击背景关闭（视为取消）
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('show');
+                    setTimeout(() => {
+                        modal.remove();
+                        resolve(false);
+                    }, 300);
+                }
+            });
+
+            // ESC键关闭（视为取消）
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    modal.classList.remove('show');
+                    setTimeout(() => {
+                        modal.remove();
+                        resolve(false);
+                    }, 300);
+                    document.removeEventListener('keydown', handleEsc);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+        });
     }
 }
 
