@@ -320,6 +320,109 @@ h1 {
     display: none;
 }
 
+/* 游戏计时器样式 */
+.game-timer {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #495057;
+    margin-left: 10px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Toast通知样式 */
+.game-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 1000;
+    transition: all 0.3s ease;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.game-toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+/* 庆祝弹窗样式 */
+.celebration-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.celebration-modal.show {
+    opacity: 1;
+}
+
+.celebration-content {
+    background: white;
+    padding: 40px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    transform: scale(0.5);
+    transition: transform 0.5s ease;
+    max-width: 300px;
+    width: 80%;
+}
+
+.celebration-modal.show .celebration-content {
+    transform: scale(1);
+}
+
+.celebration-icon {
+    font-size: 60px;
+    margin-bottom: 20px;
+    animation: bounce 2s infinite;
+}
+
+.celebration-text {
+    font-size: 24px;
+    font-weight: 700;
+    color: #28a745;
+    margin-bottom: 10px;
+}
+
+.celebration-subtext {
+    font-size: 16px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-10px);
+    }
+    60% {
+        transform: translateY(-5px);
+    }
+}
+
 @media (max-width: 768px) {
     .container {
         margin: 20px;
@@ -342,6 +445,17 @@ h1 {
         gap: 15px;
     }
     
+    .game-info {
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .game-timer {
+        margin-left: 0;
+        margin-top: 10px;
+    }
+    
     .room-actions {
         align-items: stretch;
     }
@@ -354,5 +468,38 @@ h1 {
     .players-info {
         flex-direction: column;
         gap: 10px;
+    }
+    
+    .game-toast {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        transform: translateY(-100px);
+        border-radius: 15px;
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    
+    .game-toast.show {
+        transform: translateY(0);
+    }
+    
+    .celebration-content {
+        padding: 30px 20px;
+        margin: 20px;
+    }
+    
+    .celebration-icon {
+        font-size: 50px;
+        margin-bottom: 15px;
+    }
+    
+    .celebration-text {
+        font-size: 20px;
+        margin-bottom: 8px;
+    }
+    
+    .celebration-subtext {
+        font-size: 14px;
     }
 }

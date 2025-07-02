@@ -13,6 +13,12 @@ class OnlineGomoku {
         this.boardSize = 15;
         this.cellSize = 38;
         
+        // 新增功能相关属性
+        this.lastMove = null; // 记录最新落子位置 {row, col, player}
+        this.gameStartTime = null; // 游戏开始时间
+        this.gameEndTime = null; // 游戏结束时间
+        this.moveHistory = []; // 移动历史记录
+        
         this.initBoard();
         this.initEventListeners();
         this.drawBoard();
@@ -105,11 +111,19 @@ class OnlineGomoku {
     }
 
     startAIGame() {
-        // 启动AI游戏模式（保留原有的AI逻辑）
+        // 启动AI游戏模式
         this.gameState = 'playing';
         this.currentPlayer = 1;
         this.initBoard();
         this.drawBoard();
+        
+        // 记录游戏开始时间
+        this.gameStartTime = Date.now();
+        this.gameEndTime = null;
+        this.lastMove = null;
+        this.moveHistory = [];
+        
+        this.updateGameTimer();
         this.updateUI();
     }
 
@@ -367,6 +381,12 @@ class OnlineGomoku {
         this.initBoard();
         this.drawBoard();
         
+        // 记录游戏开始时间
+        this.gameStartTime = Date.now();
+        this.gameEndTime = null;
+        this.lastMove = null;
+        this.moveHistory = [];
+        
         // 更新玩家信息
         data.players.forEach((player, index) => {
             const playerInfo = document.getElementById(`player${index + 1}-info`);
@@ -375,33 +395,73 @@ class OnlineGomoku {
         });
         
         this.updateConnectionStatus('connected', '游戏进行中');
+        this.updateGameTimer();
         this.updateUI();
     }
 
     handleOpponentMove(data) {
         const { row, col, player } = data.move;
         this.board[row][col] = player;
-        this.drawPiece(row, col, player);
+        
+        // 记录最新落子
+        this.lastMove = { row, col, player };
+        this.moveHistory.push({ row, col, player, timestamp: Date.now() });
+        
+        // 重新绘制棋盘以更新最新落子标记
+        this.redrawBoard();
+        
         this.currentPlayer = data.currentPlayer;
+        this.showMoveNotification(row, col, player);
         this.updateUI();
     }
 
     handleGameOver(data) {
         this.gameState = 'finished';
+        this.gameEndTime = Date.now();
+        
         const { row, col, player } = data.move;
         this.board[row][col] = player;
-        this.drawPiece(row, col, player);
+        
+        // 记录最后一步
+        this.lastMove = { row, col, player };
+        this.moveHistory.push({ row, col, player, timestamp: Date.now() });
+        
+        // 重新绘制棋盘
+        this.redrawBoard();
         
         const winnerDisplay = document.getElementById('winner-display');
+        let winnerText = '';
+        let isWinner = false;
+        
         if (data.winner === 0) {
-            winnerDisplay.textContent = '平局！';
+            winnerText = '平局！';
         } else if (data.winner === this.playerNumber) {
-            winnerDisplay.textContent = '你赢了！';
+            winnerText = '你赢了！';
+            isWinner = true;
         } else {
-            winnerDisplay.textContent = '对手获胜！';
+            winnerText = '对手获胜！';
         }
         
+        winnerDisplay.textContent = winnerText;
         winnerDisplay.classList.add('show');
+        
+        // 显示游戏总时长
+        if (this.gameStartTime && this.gameEndTime) {
+            const totalTime = Math.floor((this.gameEndTime - this.gameStartTime) / 1000);
+            const minutes = Math.floor(totalTime / 60);
+            const seconds = totalTime % 60;
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            setTimeout(() => {
+                this.showToast(`游戏总时长: ${timeString}`, 4000);
+            }, 1000);
+        }
+        
+        // 显示庆祝弹窗
+        if (isWinner) {
+            this.showCelebrationModal();
+        }
+        
         document.getElementById('reset-btn').style.display = 'inline-block';
         this.updateUI();
     }
@@ -513,7 +573,12 @@ class OnlineGomoku {
         const row = Math.round((y - this.cellSize / 2) / this.cellSize);
         
         if (this.isValidMove(row, col)) {
+            // 记录玩家移动
+            this.lastMove = { row, col, player: this.currentPlayer };
+            this.moveHistory.push({ row, col, player: this.currentPlayer, timestamp: Date.now() });
+            
             this.makeMove(row, col, this.currentPlayer);
+            this.redrawBoard(); // 使用新的重绘方法
             
             if (this.checkWin(row, col, this.currentPlayer)) {
                 this.endAIGame(this.currentPlayer);
@@ -540,7 +605,13 @@ class OnlineGomoku {
     makeAIMove() {
         const bestMove = this.getBestMove();
         if (bestMove) {
+            // 记录AI移动
+            this.lastMove = { row: bestMove.row, col: bestMove.col, player: 2 };
+            this.moveHistory.push({ row: bestMove.row, col: bestMove.col, player: 2, timestamp: Date.now() });
+            
             this.makeMove(bestMove.row, bestMove.col, 2);
+            this.redrawBoard(); // 使用新的重绘方法
+            this.showMoveNotification(bestMove.row, bestMove.col, 2);
             
             if (this.checkWin(bestMove.row, bestMove.col, 2)) {
                 this.endAIGame(2);
@@ -555,6 +626,30 @@ class OnlineGomoku {
             this.currentPlayer = 1;
             this.updateUI();
         }
+    }
+
+    showCelebrationModal() {
+        // 创建庆祝弹窗
+        const modal = document.createElement('div');
+        modal.className = 'celebration-modal';
+        modal.innerHTML = `
+            <div class="celebration-content">
+                <div class="celebration-icon">🎉</div>
+                <div class="celebration-text">恭喜获胜！</div>
+                <div class="celebration-subtext">太棒了！</div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // 显示动画
+        setTimeout(() => modal.classList.add('show'), 100);
+        
+        // 3秒后自动消失
+        setTimeout(() => {
+            modal.classList.remove('show');
+            setTimeout(() => modal.remove(), 500);
+        }, 3000);
     }
 
     getBestMove() {
@@ -684,17 +779,39 @@ class OnlineGomoku {
 
     endAIGame(winner) {
         this.gameState = 'finished';
+        this.gameEndTime = Date.now();
+        
         const winnerDisplay = document.getElementById('winner-display');
+        let isWinner = false;
         
         if (winner === 0) {
             winnerDisplay.textContent = '平局！';
         } else if (winner === 1) {
             winnerDisplay.textContent = '你赢了！';
+            isWinner = true;
         } else {
             winnerDisplay.textContent = '电脑获胜！';
         }
         
         winnerDisplay.classList.add('show');
+        
+        // 显示游戏总时长
+        if (this.gameStartTime && this.gameEndTime) {
+            const totalTime = Math.floor((this.gameEndTime - this.gameStartTime) / 1000);
+            const minutes = Math.floor(totalTime / 60);
+            const seconds = totalTime % 60;
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            setTimeout(() => {
+                this.showToast(`游戏总时长: ${timeString}`, 4000);
+            }, 1000);
+        }
+        
+        // 显示庆祝弹窗
+        if (isWinner) {
+            this.showCelebrationModal();
+        }
+        
         document.getElementById('reset-btn').style.display = 'inline-block';
         this.updateUI();
     }
@@ -716,6 +833,80 @@ class OnlineGomoku {
             
             document.getElementById('reset-btn').style.display = 'none';
             this.updateUI();
+        }
+    }
+
+    updateGameTimer() {
+        if (this.gameState === 'playing' && this.gameStartTime) {
+            const currentTime = Date.now();
+            const elapsedTime = Math.floor((currentTime - this.gameStartTime) / 1000);
+            const minutes = Math.floor(elapsedTime / 60);
+            const seconds = elapsedTime % 60;
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // 更新计时器显示
+            let timerElement = document.getElementById('game-timer');
+            if (!timerElement) {
+                timerElement = document.createElement('div');
+                timerElement.id = 'game-timer';
+                timerElement.className = 'game-timer';
+                document.querySelector('.game-info').appendChild(timerElement);
+            }
+            timerElement.textContent = `用时: ${timeString}`;
+            
+            // 如果游戏还在进行，继续更新计时器
+            if (this.gameState === 'playing') {
+                setTimeout(() => this.updateGameTimer(), 1000);
+            }
+        }
+    }
+
+    showMoveNotification(row, col, player) {
+        const playerName = this.gameMode === 'pvp' 
+            ? (player === this.playerNumber ? '你' : '对手')
+            : (player === 1 ? '你' : '电脑');
+        
+        const notation = String.fromCharCode(65 + col) + (15 - row); // A1, B2 等格式
+        const message = `${playerName}下在了 ${notation}`;
+        
+        this.showToast(message, 2000);
+    }
+
+    showToast(message, duration = 3000) {
+        // 移除已存在的toast
+        const existingToast = document.querySelector('.game-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = 'game-toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        // 显示动画
+        setTimeout(() => toast.classList.add('show'), 100);
+        
+        // 自动消失
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+
+    redrawBoard() {
+        this.drawBoard();
+        
+        // 重新绘制所有棋子
+        for (let row = 0; row < this.boardSize; row++) {
+            for (let col = 0; col < this.boardSize; col++) {
+                if (this.board[row][col] !== 0) {
+                    const isLatest = this.lastMove && 
+                        this.lastMove.row === row && 
+                        this.lastMove.col === col;
+                    this.drawPiece(row, col, this.board[row][col], isLatest);
+                }
+            }
         }
     }
 
@@ -789,27 +980,102 @@ class OnlineGomoku {
         });
     }
 
-    drawPiece(row, col, player) {
+    drawPiece(row, col, player, isLatest = false) {
         const x = this.cellSize / 2 + col * this.cellSize;
         const y = this.cellSize / 2 + row * this.cellSize;
-        const radius = this.cellSize * 0.4;
+        const radius = this.cellSize * 0.42;
         
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
+        // 保存当前上下文
+        this.ctx.save();
         
         if (player === 1) {
-            this.ctx.fillStyle = '#000';
+            // 黑子 - 渐变效果
+            const gradient = this.ctx.createRadialGradient(
+                x - radius * 0.3, y - radius * 0.3, 0,
+                x, y, radius
+            );
+            gradient.addColorStop(0, '#333');
+            gradient.addColorStop(0.7, '#111');
+            gradient.addColorStop(1, '#000');
+            
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
             this.ctx.fill();
-            this.ctx.strokeStyle = '#333';
-            this.ctx.lineWidth = 2;
+            
+            // 高光效果
+            const highlight = this.ctx.createRadialGradient(
+                x - radius * 0.4, y - radius * 0.4, 0,
+                x - radius * 0.4, y - radius * 0.4, radius * 0.3
+            );
+            highlight.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+            highlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            
+            this.ctx.fillStyle = highlight;
+            this.ctx.beginPath();
+            this.ctx.arc(x - radius * 0.2, y - radius * 0.2, radius * 0.3, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // 边框
+            this.ctx.strokeStyle = '#222';
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
             this.ctx.stroke();
+            
         } else {
-            this.ctx.fillStyle = '#fff';
+            // 白子 - 渐变效果
+            const gradient = this.ctx.createRadialGradient(
+                x - radius * 0.3, y - radius * 0.3, 0,
+                x, y, radius
+            );
+            gradient.addColorStop(0, '#fff');
+            gradient.addColorStop(0.7, '#f8f8f8');
+            gradient.addColorStop(1, '#e8e8e8');
+            
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
             this.ctx.fill();
-            this.ctx.strokeStyle = '#666';
-            this.ctx.lineWidth = 2;
+            
+            // 高光效果
+            const highlight = this.ctx.createRadialGradient(
+                x - radius * 0.4, y - radius * 0.4, 0,
+                x - radius * 0.4, y - radius * 0.4, radius * 0.4
+            );
+            highlight.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+            highlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            
+            this.ctx.fillStyle = highlight;
+            this.ctx.beginPath();
+            this.ctx.arc(x - radius * 0.2, y - radius * 0.2, radius * 0.4, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // 边框
+            this.ctx.strokeStyle = '#999';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
             this.ctx.stroke();
         }
+        
+        // 如果是最新落子，添加特殊标记
+        if (isLatest) {
+            this.ctx.strokeStyle = player === 1 ? '#ff6b6b' : '#4ecdc4';
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius + 2, 0, 2 * Math.PI);
+            this.ctx.stroke();
+            
+            // 添加小圆点标记
+            this.ctx.fillStyle = player === 1 ? '#ff6b6b' : '#4ecdc4';
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            this.ctx.fill();
+        }
+        
+        // 恢复上下文
+        this.ctx.restore();
     }
 }
 
