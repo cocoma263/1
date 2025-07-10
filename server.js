@@ -300,6 +300,9 @@ function handleMessage(ws, data) {
         case 'reset_game':
             handleResetGame(ws, data);
             break;
+        case 'send_message':
+            handleSendMessage(ws, data);
+            break;
         default:
             console.log('未知消息类型:', data.type);
     }
@@ -422,6 +425,32 @@ function handleResetGame(ws, data) {
     if (!room) return;
     
     room.resetGame();
+}
+
+function handleSendMessage(ws, data) {
+    const playerId = players.get(ws);
+    if (!playerId) return;
+    
+    const room = findPlayerRoom(playerId);
+    if (!room) return;
+    
+    const player = room.players.find(p => p.id === playerId);
+    if (!player) return;
+    
+    const { message } = data;
+    if (!message || message.trim().length === 0) return;
+    
+    // 广播聊天消息给房间内所有玩家
+    const chatMessage = {
+        type: 'chat_message',
+        playerId: playerId,
+        playerName: player.name,
+        message: message.trim(),
+        timestamp: Date.now()
+    };
+    
+    console.log(`聊天消息 - 房间 ${room.id}, 玩家 ${player.name}: ${message}`);
+    room.broadcast(chatMessage);
 }
 
 function handlePlayerDisconnect(playerId) {

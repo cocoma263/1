@@ -1,0 +1,292 @@
+=== 服务器启动信息 ===
+Node版本: v24.3.0
+环境: undefined
+端口: 3000
+主机: localhost
+当前目录: /Users/coco/project/1
+✅ 服务器成功启动在 localhost:3000
+本地访问: http://localhost:3000
+WebSocket服务器已启动
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: 74C03D04
+玩家ID: 0d732a37-d80b-4c77-8a00-28a76b326dd1
+玩家昵称: 1
+房间已添加到Map，当前房间总数: 1
+当前所有房间ID: [ '74C03D04' ]
+玩家 1 加入房间 74C03D04，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: '74C03D04',
+  playerId: '0d732a37-d80b-4c77-8a00-28a76b326dd1',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1001 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: 2B2AB29A
+玩家ID: e9fab628-6614-48f2-a9ce-b0c9edd74860
+玩家昵称: 2
+房间已添加到Map，当前房间总数: 1
+当前所有房间ID: [ '2B2AB29A' ]
+玩家 2 加入房间 2B2AB29A，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: '2B2AB29A',
+  playerId: 'e9fab628-6614-48f2-a9ce-b0c9edd74860',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+新的WebSocket连接，来源: ::1
+收到消息: join_room
+=== 加入房间请求 ===
+请求加入房间ID: 2
+玩家昵称: 微信用户
+当前房间总数: 1
+当前所有房间ID: [ '2B2AB29A' ]
+查找房间结果: 房间不存在
+❌ 房间 2 不存在
+可用房间列表: [ '2B2AB29A' ]
+rooms.size: 1
+尝试精确匹配: false
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: 039887A7
+玩家ID: 60f15004-df38-4ee2-8a69-e9808bcd5e26
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', '039887A7' ]
+玩家 微信用户 加入房间 039887A7，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: '039887A7',
+  playerId: '60f15004-df38-4ee2-8a69-e9808bcd5e26',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: D615F630
+玩家ID: 3317c5ab-1361-433f-a9f3-9da51339d89a
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', 'D615F630' ]
+玩家 微信用户 加入房间 D615F630，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: 'D615F630',
+  playerId: '3317c5ab-1361-433f-a9f3-9da51339d89a',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: B3016903
+玩家ID: c0c080f4-a03e-4f6d-be11-e4ecb5c31469
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', 'B3016903' ]
+玩家 微信用户 加入房间 B3016903，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: 'B3016903',
+  playerId: 'c0c080f4-a03e-4f6d-be11-e4ecb5c31469',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: 7A7050F7
+玩家ID: fcc3bcd9-ef6e-4ba2-87da-b3a35dc26ceb
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', '7A7050F7' ]
+玩家 微信用户 加入房间 7A7050F7，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: '7A7050F7',
+  playerId: 'fcc3bcd9-ef6e-4ba2-87da-b3a35dc26ceb',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1005 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: BA85DC5C
+玩家ID: 04e31ad1-059b-4c19-a1d6-07355f6e07c6
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', 'BA85DC5C' ]
+玩家 微信用户 加入房间 BA85DC5C，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: 'BA85DC5C',
+  playerId: '04e31ad1-059b-4c19-a1d6-07355f6e07c6',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+收到消息: make_move
+收到消息: make_move
+收到消息: make_move
+收到消息: make_move
+收到消息: make_move
+收到消息: make_move
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: B5D90CE3
+玩家ID: b67ac3e7-7fa4-48a2-bad9-b1ac8374b9f9
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', 'B5D90CE3' ]
+玩家 微信用户 加入房间 B5D90CE3，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: 'B5D90CE3',
+  playerId: 'b67ac3e7-7fa4-48a2-bad9-b1ac8374b9f9',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: B302FCE8
+玩家ID: ab2192bf-16cf-4bf3-a921-7ee88c678276
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', 'B302FCE8' ]
+玩家 微信用户 加入房间 B302FCE8，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: 'B302FCE8',
+  playerId: 'ab2192bf-16cf-4bf3-a921-7ee88c678276',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: B38B4068
+玩家ID: 454945cd-37ff-4111-8192-ceeb71fb2ba8
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', 'B38B4068' ]
+玩家 微信用户 加入房间 B38B4068，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: 'B38B4068',
+  playerId: '454945cd-37ff-4111-8192-ceeb71fb2ba8',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: 9FB39961
+玩家ID: 4ec4e744-5164-4654-ac73-09b0f83e792c
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', '9FB39961' ]
+玩家 微信用户 加入房间 9FB39961，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: '9FB39961',
+  playerId: '4ec4e744-5164-4654-ac73-09b0f83e792c',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: AFA31936
+玩家ID: b76b78aa-c582-49eb-8c4f-27f887c58faf
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', 'AFA31936' ]
+玩家 微信用户 加入房间 AFA31936，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: 'AFA31936',
+  playerId: 'b76b78aa-c582-49eb-8c4f-27f887c58faf',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1005 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: 39AC5029
+玩家ID: 662dcf8c-50b1-404a-a821-2362ac4efa1a
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', '39AC5029' ]
+玩家 微信用户 加入房间 39AC5029，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: '39AC5029',
+  playerId: '662dcf8c-50b1-404a-a821-2362ac4efa1a',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: join_room
+=== 加入房间请求 ===
+请求加入房间ID: 1
+玩家昵称: 微信用户
+当前房间总数: 1
+当前所有房间ID: [ '2B2AB29A' ]
+查找房间结果: 房间不存在
+❌ 房间 1 不存在
+可用房间列表: [ '2B2AB29A' ]
+rooms.size: 1
+尝试精确匹配: false
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: create_room
+=== 创建房间 ===
+房间ID: FC83CA44
+玩家ID: ffd1238e-63b9-4d08-8c76-b20e00958296
+玩家昵称: 微信用户
+房间已添加到Map，当前房间总数: 2
+当前所有房间ID: [ '2B2AB29A', 'FC83CA44' ]
+玩家 微信用户 加入房间 FC83CA44，当前玩家数: 1
+发送房间创建响应: {
+  type: 'room_created',
+  roomId: 'FC83CA44',
+  playerId: 'ffd1238e-63b9-4d08-8c76-b20e00958296',
+  playerNumber: 1,
+  gameState: 'waiting'
+}
+WebSocket连接关闭，代码: 1000 原因: 
+新的WebSocket连接，来源: ::1
+收到消息: join_room
+=== 加入房间请求 ===
+请求加入房间ID: GAR9RV
+玩家昵称: 微信用户
+当前房间总数: 1
+当前所有房间ID: [ '2B2AB29A' ]
+查找房间结果: 房间不存在
+❌ 房间 GAR9RV 不存在
+可用房间列表: [ '2B2AB29A' ]
+rooms.size: 1
+尝试精确匹配: false
+WebSocket连接关闭，代码: 1000 原因: 
+WebSocket连接关闭，代码: 1001 原因: 

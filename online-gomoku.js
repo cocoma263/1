@@ -26,14 +26,28 @@ class OnlineGomoku {
     }
 
     initCanvasSize() {
-        // 获取棋盘容器的实际宽度，确保与上面的模块完全对齐
-        const boardContainer = this.canvas.parentElement;
-        const containerRect = boardContainer.getBoundingClientRect();
-        const boardWidth = containerRect.width;
+        // 设置固定的棋盘大小，确保稳定性
+        let boardWidth = 500;
         
-        // 设置canvas尺寸为容器的实际宽度（正方形）
+        // 尝试获取容器宽度，如果失败则使用固定值
+        try {
+            const container = document.querySelector('.container');
+            if (container) {
+                const containerStyle = window.getComputedStyle(container);
+                const containerWidth = container.clientWidth - parseFloat(containerStyle.paddingLeft) - parseFloat(containerStyle.paddingRight);
+                boardWidth = Math.min(containerWidth, 600);
+            }
+        } catch (error) {
+            console.log('使用默认棋盘大小:', error);
+        }
+        
+        // 设置canvas尺寸
         this.canvas.width = boardWidth;
         this.canvas.height = boardWidth;
+        
+        // 设置CSS样式
+        this.canvas.style.width = boardWidth + 'px';
+        this.canvas.style.height = boardWidth + 'px';
         
         // 计算格子大小，留出适当边距
         const boardMargin = 30; // 棋盘内边距
@@ -101,6 +115,32 @@ class OnlineGomoku {
                 this.joinRoom();
             }
         });
+
+        // 聊天功能事件监听器
+        document.getElementById('send-message').addEventListener('click', () => {
+            this.sendMessage();
+        });
+
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.sendMessage();
+            }
+        });
+
+        document.getElementById('chat-toggle-btn').addEventListener('click', () => {
+            this.showChatWindow();
+        });
+
+        document.getElementById('close-chat').addEventListener('click', () => {
+            this.hideChatWindow();
+        });
+
+        document.getElementById('minimize-chat').addEventListener('click', () => {
+            this.minimizeChatWindow();
+        });
+
+        // 初始化拖动功能
+        this.initChatDragFunction();
 
         // 检查URL参数是否包含房间ID
         this.checkUrlParams();
@@ -397,6 +437,9 @@ class OnlineGomoku {
             case 'player_left':
                 this.handlePlayerLeft(data);
                 break;
+            case 'chat_message':
+                this.handleChatMessage(data);
+                break;
             case 'error':
                 console.error('服务器错误:', data.message);
                 alert(data.message);
@@ -423,6 +466,7 @@ class OnlineGomoku {
         this.updatePlayerInfo();
         this.updateConnectionStatus('waiting', '等待对手加入...');
         this.updateUI();
+        this.showChatPanel();
     }
 
     handleRoomJoined(data) {
@@ -441,6 +485,7 @@ class OnlineGomoku {
         }
         
         this.updateUI();
+        this.showChatPanel();
     }
 
     handlePlayerJoined(data) {
@@ -486,6 +531,7 @@ class OnlineGomoku {
         this.updateConnectionStatus('connected', '游戏进行中');
         this.updateGameTimer();
         this.updateUI();
+        this.showChatPanel();
     }
 
     handleOpponentMove(data) {
@@ -1597,6 +1643,165 @@ class OnlineGomoku {
             };
             document.addEventListener('keydown', handleEsc);
         });
+    }
+
+    // 聊天功能方法
+    sendMessage() {
+        const messageInput = document.getElementById('message-input');
+        const message = messageInput.value.trim();
+        
+        if (!message || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            return;
+        }
+
+        // 发送聊天消息到服务器
+        this.ws.send(JSON.stringify({
+            type: 'send_message',
+            message: message
+        }));
+
+        messageInput.value = '';
+    }
+
+    handleChatMessage(data) {
+        const chatMessages = document.getElementById('chat-messages');
+        
+        // 创建消息元素
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'chat-message';
+        
+        // 判断是否是自己的消息
+        const isOwnMessage = data.playerId === this.playerId;
+        if (isOwnMessage) {
+            messageDiv.classList.add('own-message');
+        }
+        
+        // 格式化时间
+        const time = new Date(data.timestamp);
+        const timeString = time.toLocaleTimeString('zh-CN', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        messageDiv.textContent = data.message;
+        
+        chatMessages.appendChild(messageDiv);
+        
+        // 滚动到底部
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // 如果聊天窗口是隐藏的，显示新消息通知
+        const chatWindow = document.getElementById('chat-window');
+        if (chatWindow.style.display === 'none') {
+            this.showChatNotification();
+        }
+    }
+
+    showChatWindow() {
+        const chatWindow = document.getElementById('chat-window');
+        
+        chatWindow.style.display = 'block';
+        chatWindow.classList.remove('minimized');
+        document.getElementById('minimize-chat').textContent = '-';
+        
+        // 清除通知样式
+        const toggleBtn = document.getElementById('chat-toggle-btn');
+        toggleBtn.classList.remove('has-notification');
+        
+        // 聚焦到输入框
+        setTimeout(() => {
+            document.getElementById('message-input').focus();
+        }, 100);
+    }
+
+    hideChatWindow() {
+        const chatWindow = document.getElementById('chat-window');
+        chatWindow.style.display = 'none';
+    }
+
+    minimizeChatWindow() {
+        const chatWindow = document.getElementById('chat-window');
+        const minimizeBtn = document.getElementById('minimize-chat');
+        
+        if (chatWindow.classList.contains('minimized')) {
+            chatWindow.classList.remove('minimized');
+            minimizeBtn.textContent = '-';
+        } else {
+            chatWindow.classList.add('minimized');
+            minimizeBtn.textContent = '+';
+        }
+    }
+
+    showChatNotification() {
+        const toggleBtn = document.getElementById('chat-toggle-btn');
+        toggleBtn.classList.add('has-notification');
+        
+        // 5秒后移除通知样式
+        setTimeout(() => {
+            toggleBtn.classList.remove('has-notification');
+        }, 5000);
+    }
+
+    initChatDragFunction() {
+        const chatWindow = document.getElementById('chat-window');
+        const chatHeader = document.getElementById('chat-header');
+        
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        chatHeader.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', dragMove);
+        document.addEventListener('mouseup', dragEnd);
+
+        function dragStart(e) {
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+
+            if (e.target === chatHeader || e.target.parentNode === chatHeader) {
+                isDragging = true;
+                chatWindow.style.cursor = 'grabbing';
+            }
+        }
+
+        function dragMove(e) {
+            if (isDragging) {
+                e.preventDefault();
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+
+                xOffset = currentX;
+                yOffset = currentY;
+
+                chatWindow.style.transform = `translate(${currentX}px, ${currentY}px)`;
+            }
+        }
+
+        function dragEnd() {
+            initialX = currentX;
+            initialY = currentY;
+            isDragging = false;
+            chatWindow.style.cursor = 'default';
+        }
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    showChatPanel() {
+        const chatToggleBtn = document.getElementById('chat-toggle-btn');
+        if (this.gameMode === 'pvp' && (this.gameState === 'waiting' || this.gameState === 'playing')) {
+            chatToggleBtn.style.display = 'inline-block';
+        } else {
+            chatToggleBtn.style.display = 'none';
+        }
     }
 }
 

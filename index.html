@@ -39,6 +39,7 @@
                     <span id="room-id-display"></span>
                     <div class="room-buttons">
                         <button id="copy-room-link" class="copy-btn">复制邀请链接</button>
+                        <button id="chat-toggle-btn" class="chat-toggle-btn-inline" style="display: none;">💬 聊天</button>
                         <button id="exit-room-btn" class="exit-btn">退出房间</button>
                     </div>
                 </div>
@@ -61,6 +62,26 @@
 
         <div class="game-board-container">
             <canvas id="game-board"></canvas>
+        </div>
+        
+        <!-- 可拖动聊天框 -->
+        <div id="chat-window" class="chat-window" style="display: none;">
+            <div class="chat-header" id="chat-header">
+                <h3>💬 游戏聊天</h3>
+                <div class="chat-controls">
+                    <button id="minimize-chat" class="minimize-btn">-</button>
+                    <button id="close-chat" class="close-chat-btn">×</button>
+                </div>
+            </div>
+            <div class="chat-body" id="chat-body">
+                <div class="chat-messages" id="chat-messages">
+                    <!-- 聊天消息将在这里显示 -->
+                </div>
+                <div class="chat-input">
+                    <input type="text" id="message-input" placeholder="输入消息..." maxlength="100">
+                    <button id="send-message" class="send-btn">发送</button>
+                </div>
+            </div>
         </div>
 
         <div class="game-status">
